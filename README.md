@@ -161,3 +161,6 @@ Les améliorations possibles sont nombreuses:
 ## 6. Conclusion
 >L'attaque du slowloris est une attaque très intéressante si jamais le serveur web est vulnérable à cette attaque car elle permet à un seul ordinateur de facilement ddos un serveur.
 Cependant il s'avère qui est facile de se protéger face à ses attaques en implémentant quelques règles: nombres de socket par utilisateur limités, firewall, reverse proxy, etc.
+
+## 7 TODO
+- [ ] Translate to english
