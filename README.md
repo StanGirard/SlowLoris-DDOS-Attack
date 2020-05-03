@@ -1,3 +1,4 @@
+# Slow Loris Attack
 The Slowloris attack allows a user to DDOS a server using only one machine. It tries to keep as many connections open with the target web server as possible and tries to keep them open as long as possible. As soon as Slowloris has opened a connection, it will keep it open by sending incomplete requests that it will slowly complete as it goes along but will never finish them. Affected servers will see their maximum number of connections reached and may refuse new user connections.
 
 The servers mostly affected by the Slowloris attack are:
