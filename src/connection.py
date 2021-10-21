@@ -33,7 +33,7 @@ class Connection:
                 if ws.startswith("Apache"):
                     self.log.info("[{}] server running with Apache, best configuartion for this attack".format(self.target_info.host))
                 else:
-                    self.log.info("[{}] serveur running with {} , Not best configuration".format(self.target_info.host,ws))
+                    self.log.info("[{}] server running with {} , Not best configuration".format(self.target_info.host,ws))
         return None
     
     def init_socks(self):
